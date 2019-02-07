@@ -12,4 +12,8 @@
     <Folder Include="Model\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Recommendations.Model\Recommendations.Model.csproj" />
+  </ItemGroup>
+
 </Project>

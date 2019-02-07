@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Recommendations.DB.ImportUtil": {
+      "commandName": "Project",
+      "commandLineArgs": "\"Host=localhost;Username=recommendations_api;Password=recommendations_api;Database=recommendations\" \"C:\\dev\\prj\\pwc\\data\""
+    }
+  }
+}
