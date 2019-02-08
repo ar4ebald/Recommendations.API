@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Recommendations.Model
+﻿namespace Recommendations.Model
 {
     public enum Sex
     {

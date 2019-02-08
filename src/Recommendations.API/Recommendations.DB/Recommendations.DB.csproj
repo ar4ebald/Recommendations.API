@@ -9,11 +9,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Model\" />
+    <ProjectReference Include="..\Recommendations.Model\Recommendations.Model.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Recommendations.Model\Recommendations.Model.csproj" />
+    <Folder Include="Model\" />
   </ItemGroup>
 
 </Project>
