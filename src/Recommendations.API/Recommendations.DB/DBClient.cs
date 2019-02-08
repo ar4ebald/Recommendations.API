@@ -12,10 +12,13 @@ namespace Recommendations.DB
 
         static DBClient()
         {
+            NpgsqlConnection.GlobalTypeMapper.UseJsonNet();
+
             NpgsqlConnection.GlobalTypeMapper.MapEnum<Sex>(Scheme + ".sex");
             NpgsqlConnection.GlobalTypeMapper.MapComposite<User>(Scheme + ".user_type");
             NpgsqlConnection.GlobalTypeMapper.MapComposite<Order>(Scheme + ".order_type");
             NpgsqlConnection.GlobalTypeMapper.MapComposite<OrderEntry>(Scheme + ".order_entry_type");
+            NpgsqlConnection.GlobalTypeMapper.MapComposite<Operator>(Scheme + ".operator_type");
         }
 
         readonly string _connectionString;
@@ -100,6 +103,37 @@ namespace Recommendations.DB
             using (var command = Call(connection, Scheme + ".add_order_entry"))
             {
                 command.Parameters.AddWithValue("p_entries", entries);
+                await command.ExecuteNonQueryAsync();
+            }
+        }
+
+        public async Task<(Operator Operator, string Password)> GetOperator(string login)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_operator"))
+            {
+                command.Parameters.AddWithValue("p_login", login);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    var @operator = reader.GetFieldValue<Operator>(0);
+                    var password = reader.GetFieldValue<string>(1);
+
+                    return (@operator, password);
+                }
+            }
+        }
+
+        public async Task SetSettings(int operatorID, string settings)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".set_settings"))
+            {
+                command.Parameters.AddWithValue("p_operator_id", operatorID);
+                command.Parameters.AddWithValue("p_settings", settings);
                 await command.ExecuteNonQueryAsync();
             }
         }
