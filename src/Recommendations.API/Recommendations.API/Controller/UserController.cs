@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -30,8 +31,30 @@ namespace Recommendations.API.Controller
             {
                 ID = model.ID,
                 Age = model.Age,
-                Sex = model.Sex
+                Sex = model.Sex,
+
+                OrdersLink = Url.Action(
+                    "GetUserOrders",
+                    "User",
+                    new { id },
+                    Request.Scheme
+                )
             });
+        }
+
+        [HttpGet("user/{id}/orders")]
+        public async Task<IEnumerable<string>> GetUserOrders(int id)
+        {
+            const int dummyLimit = 1024;
+
+            var orderIDs = await _client.GetUserOrders(id, 0, dummyLimit);
+
+            return orderIDs.ConvertAll(orderID => Url.Action(
+                "GetOrder",
+                "Order",
+                new { id = orderID },
+                Request.Scheme
+            ));
         }
     }
 }

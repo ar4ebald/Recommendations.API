@@ -229,5 +229,26 @@ namespace Recommendations.DB
                 }
             }
         }
+
+        public async Task<List<int>> GetUserOrders(int userID, int offset, int limit)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_user_orders"))
+            {
+                command.Parameters.AddWithValue("p_user_id", userID);
+                command.Parameters.AddWithValue("p_offset", offset);
+                command.Parameters.AddWithValue("p_limit", limit);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    var result = new List<int>();
+
+                    while (await reader.ReadAsync())
+                        result.Add(reader.GetFieldValue<int>(0));
+
+                    return result;
+                }
+            }
+        }
     }
 }
