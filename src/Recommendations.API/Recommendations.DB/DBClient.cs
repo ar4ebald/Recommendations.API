@@ -137,5 +137,97 @@ namespace Recommendations.DB
                 await command.ExecuteNonQueryAsync();
             }
         }
+
+
+        public async Task<Product> GetProduct(int id)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_product"))
+            {
+                command.Parameters.AddWithValue("p_id", id);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    return new Product
+                    {
+                        ID = reader.GetFieldValue<int>(0),
+                        Name = reader.GetFieldValue<string>(1),
+                        CategoryID = reader.GetFieldValue<int>(2)
+                    };
+                }
+            }
+        }
+
+        public async Task<Category> GetCategory(int id)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_category"))
+            {
+                command.Parameters.AddWithValue("p_id", id);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    return new Category
+                    {
+                        ID = reader.GetFieldValue<int>(0),
+                        Name = reader.GetFieldValue<string>(1),
+                        ParentID = reader.GetFieldValue<int?>(2)
+                    };
+                }
+            }
+        }
+
+        public async Task<(Order Order, int[] ProductIDs)> GetOrder(int id)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_order"))
+            {
+                command.Parameters.AddWithValue("p_id", id);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    var order = new Order
+                    {
+                        ID = reader.GetFieldValue<int>(0),
+                        Day = reader.GetFieldValue<int>(1),
+                        UserID = reader.GetFieldValue<int>(2)
+                    };
+                    var productIDs = reader.GetFieldValue<int[]>(3);
+
+                    return (order, productIDs);
+                }
+            }
+        }
+
+        public async Task<User> GetUser(int id)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_user"))
+            {
+                command.Parameters.AddWithValue("p_id", id);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    return new User
+                    {
+                        ID = reader.GetFieldValue<int>(0),
+                        Age = reader.GetFieldValue<int>(1),
+                        Sex = reader.GetFieldValue<Sex>(2)
+                    };
+                }
+            }
+        }
     }
 }

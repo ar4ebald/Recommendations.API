@@ -1,30 +1,25 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model;
+using Recommendations.API.Model.Requests;
 using Recommendations.API.Services;
 
 namespace Recommendations.API.Controller
 {
-    [Route("api/[controller]")]
     [ApiController]
-    public class TestController : ControllerBase
+    public class AuthenticationController : ControllerBase
     {
         readonly IAuthenticationService _authenticationService;
 
-        public TestController(IAuthenticationService authenticationService)
+        public AuthenticationController(IAuthenticationService authenticationService)
         {
             _authenticationService = authenticationService;
         }
 
-        [HttpGet]
-        [Authorize]
-        public string Foo() => "Bar";
-
-        [HttpPost]
-        public async Task<IActionResult> Authenticate(string login, string password)
+        [HttpPost("authenticate")]
+        public async Task<IActionResult> Authenticate(AuthenticationRequest request)
         {
-            var (status, token) = await _authenticationService.Authenticate(login, password);
+            var (status, token) = await _authenticationService.Authenticate(request.Login, request.Password);
 
             if (status == AuthenticationStatus.OK)
                 return Ok(token);
