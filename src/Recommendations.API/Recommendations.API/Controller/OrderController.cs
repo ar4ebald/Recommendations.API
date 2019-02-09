@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model.ViewModels;
 using Recommendations.DB;
@@ -20,6 +21,9 @@ namespace Recommendations.API.Controller
         }
 
         [HttpGet("order/{id}")]
+        [ProducesResponseType(typeof(Order), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetOrder(int id)
         {
             var (model, productIDs) = await _client.GetOrder(id);

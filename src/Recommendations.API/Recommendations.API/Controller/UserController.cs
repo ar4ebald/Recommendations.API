@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model.ViewModels;
 using Recommendations.API.Services;
@@ -23,6 +24,9 @@ namespace Recommendations.API.Controller
         }
 
         [HttpGet("user/{id}")]
+        [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetUser(int id)
         {
             var model = await _client.GetUser(id);
@@ -53,6 +57,8 @@ namespace Recommendations.API.Controller
         }
 
         [HttpGet("user/{id}/orders")]
+        [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IEnumerable<string>> GetUserOrders(int id)
         {
             const int dummyLimit = 1024;
@@ -68,6 +74,8 @@ namespace Recommendations.API.Controller
         }
 
         [HttpGet("user/{id}/recommendations")]
+        [ProducesResponseType(typeof(Recommendation[]), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IEnumerable<Recommendation>> GetUserRecommendations(int id)
         {
             var recommendations = await _recommendationService.Get(id);
