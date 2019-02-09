@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Recommendations.API.Controller
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [ResponseCache(Duration = CacheConstants.Duration)]
     public class CategoryController : ControllerBase

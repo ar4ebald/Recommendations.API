@@ -1,22 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model.ViewModels;
+using Recommendations.API.Services;
 using Recommendations.DB;
 
 namespace Recommendations.API.Controller
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     public class UserController : ControllerBase
     {
         readonly DBClient _client;
+        readonly IRecommendationService _recommendationService;
 
-        public UserController(DBClient client)
+        public UserController(DBClient client, IRecommendationService recommendationService)
         {
             _client = client;
+            _recommendationService = recommendationService;
         }
 
         [HttpGet("user/{id}")]
@@ -38,6 +41,13 @@ namespace Recommendations.API.Controller
                     "User",
                     new { id },
                     Request.Scheme
+                ),
+
+                RecommendationLink = Url.Action(
+                    "GetUserRecommendations",
+                    "User",
+                    new { id },
+                    Request.Scheme
                 )
             });
         }
@@ -55,6 +65,23 @@ namespace Recommendations.API.Controller
                 new { id = orderID },
                 Request.Scheme
             ));
+        }
+
+        [HttpGet("user/{id}/recommendations")]
+        public async Task<IEnumerable<Recommendation>> GetUserRecommendations(int id)
+        {
+            var recommendations = await _recommendationService.Get(id);
+
+            return recommendations.Select(x => new Recommendation
+            {
+                Score = x.Score,
+                ProductLink = Url.Action(
+                    "GetProduct",
+                    "Product",
+                    new { id = x.ProductID },
+                    Request.Scheme
+                )
+            }).ToList();
         }
     }
 }

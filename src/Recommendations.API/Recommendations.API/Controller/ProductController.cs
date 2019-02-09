@@ -6,7 +6,7 @@ using Recommendations.DB;
 
 namespace Recommendations.API.Controller
 {
-    //[Authorize]
+    [Authorize]
     [ApiController]
     [ResponseCache(Duration = CacheConstants.Duration)]
     public class ProductController : ControllerBase

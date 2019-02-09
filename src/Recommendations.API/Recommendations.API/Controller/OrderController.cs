@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model.ViewModels;
 using Recommendations.DB;
 
 namespace Recommendations.API.Controller
 {
+    [Authorize]
     [ApiController]
     [ResponseCache(Duration = CacheConstants.Duration)]
     public class OrderController : ControllerBase
