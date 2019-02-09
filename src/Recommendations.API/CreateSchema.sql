@@ -45,6 +45,8 @@ create table rdb.order (
   day        integer not null check (day >= 0)
 );
 
+create index on rdb.order(user_id, day desc, id);
+
 create table rdb.order_entry (
   order_id   integer not null references rdb.order (id),
   product_id integer not null references rdb.product (id),
@@ -118,4 +120,40 @@ as $$
   update rdb.operator
   set settings = p_settings
   where id = p_operator_id;
+$$ language sql;
+
+
+create or replace function rdb.get_product(p_id integer)
+  returns setof rdb.product
+as $$
+  select * from rdb.product where id = p_id;
+$$ language sql;
+
+create or replace function rdb.get_category(p_id integer)
+  returns setof rdb.category
+as $$
+  select * from rdb.category where id = p_id;
+$$ language sql;
+
+create or replace function rdb.get_order(p_id integer)
+  returns table(id integer, day integer, user_id integer, product_ids integer[])
+as $$
+  select id, day, user_id, ARRAY(select product_id from rdb.order_entry where order_id = p_id)
+  from rdb.order
+  where id = p_id;
+$$ language sql;
+
+create or replace function rdb.get_user(p_id integer)
+  returns setof rdb.user
+as $$
+  select * from rdb.user where id = p_id;
+$$ language sql;
+
+create or replace function rdb.get_user_orders(p_user_id integer, p_offset integer, p_limit integer)
+  returns table(order_id integer)
+as $$
+  select id from rdb.order
+  where user_id = p_user_id
+  order by day desc, id
+  offset p_offset limit p_limit
 $$ language sql;
