@@ -114,14 +114,21 @@ as $$
   where login = p_login
 $$ language sql;
 
-create or replace function rdb.set_settings(p_operator_id integer, p_settings jsonb)
-  returns void
+create or replace function rdb.get_settings(p_operator_id integer)
+  returns jsonb
 as $$
-  update rdb.operator
-  set settings = p_settings
+  select settings
+  from rdb.operator
   where id = p_operator_id;
 $$ language sql;
 
+create or replace function rdb.set_settings(p_operator_id integer, p_settings text)
+  returns void
+as $$
+  update rdb.operator
+  set settings = p_settings::jsonb
+  where id = p_operator_id;
+$$ language sql;
 
 create or replace function rdb.get_product(p_id integer)
   returns setof rdb.product

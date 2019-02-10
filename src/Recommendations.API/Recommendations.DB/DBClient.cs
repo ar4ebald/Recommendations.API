@@ -138,6 +138,23 @@ namespace Recommendations.DB
             }
         }
 
+        public async Task<string> GetSettings(int operatorID)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_settings"))
+            {
+                command.Parameters.AddWithValue("p_operator_id", operatorID);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    return reader.GetFieldValue<string>(0);
+                }
+            }
+        }
+
 
         public async Task<Product> GetProduct(int id)
         {
