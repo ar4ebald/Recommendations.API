@@ -164,3 +164,13 @@ as $$
   order by day desc, id
   offset p_offset limit p_limit
 $$ language sql;
+
+create or replace function rdb.search_category(p_prefix text, p_limit integer)
+  returns setof rdb.category
+as $$
+  select *
+  from rdb.category
+  where name like p_prefix || '%'
+  order by name
+  limit p_limit
+$$ language sql;

@@ -200,6 +200,33 @@ namespace Recommendations.DB
             }
         }
 
+        public async Task<List<Category>> SearchCategory(string query, int count)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".search_category"))
+            {
+                command.Parameters.AddWithValue("p_prefix", query);
+                command.Parameters.AddWithValue("p_limit", count);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    var result = new List<Category>();
+
+                    while (await reader.ReadAsync())
+                    {
+                        result.Add(new Category
+                        {
+                            ID = reader.GetFieldValue<int>(0),
+                            Name = reader.GetFieldValue<string>(1),
+                            ParentID = reader.GetFieldValue<int?>(2)
+                        });
+                    }
+
+                    return result;
+                }
+            }
+        }
+
         public async Task<(Order Order, int[] ProductIDs)> GetOrder(int id)
         {
             using (var connection = await Connect())

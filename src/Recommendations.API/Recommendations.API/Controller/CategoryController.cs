@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model.ViewModels;
 using Recommendations.DB;
@@ -9,9 +10,11 @@ namespace Recommendations.API.Controller
 {
     [Authorize]
     [ApiController]
-    [ResponseCache(Duration = CacheConstants.Duration)]
     public class CategoryController : ControllerBase
     {
+        const int MaxCategoriesToSearch = 256;
+        const int DefaultCategoriesToSearch = 32;
+
         readonly DBClient _client;
 
         public CategoryController(DBClient client)
@@ -19,18 +22,9 @@ namespace Recommendations.API.Controller
             _client = client;
         }
 
-        [HttpGet("category/{id}")]
-        [ProducesResponseType(typeof(Category), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetCategory(int id)
+        Category ConvertToViewModel(Recommendations.Model.Category model)
         {
-            var model = await _client.GetCategory(id);
-
-            if (model == null)
-                return NotFound();
-
-            var category = new Category
+            var result = new Category
             {
                 ID = model.ID,
                 Name = model.Name
@@ -38,7 +32,7 @@ namespace Recommendations.API.Controller
 
             if (model.ParentID != null)
             {
-                category.ParentLink = Url.Action(
+                result.ParentLink = Url.Action(
                     "GetCategory",
                     "Category",
                     new { id = model.ParentID.Value },
@@ -46,7 +40,33 @@ namespace Recommendations.API.Controller
                 );
             }
 
-            return Ok(category);
+            return result;
+        }
+
+        [HttpGet("category/{id}")]
+        [ProducesResponseType(typeof(Category), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ResponseCache(Duration = CacheConstants.Duration)]
+        public async Task<IActionResult> GetCategory(int id)
+        {
+            var model = await _client.GetCategory(id);
+
+            if (model == null)
+                return NotFound();
+
+            return Ok(ConvertToViewModel(model));
+        }
+
+        [HttpGet("category/search")]
+        [ProducesResponseType(typeof(Category[]), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SearchCategory(string query, ushort? limit)
+        {
+            var actualLimit = limit == null ? DefaultCategoriesToSearch : Math.Min((int)limit, MaxCategoriesToSearch);
+            var models = await _client.SearchCategory(query ?? string.Empty, actualLimit);
+            return Ok(models.ConvertAll(ConvertToViewModel));
         }
     }
 }
