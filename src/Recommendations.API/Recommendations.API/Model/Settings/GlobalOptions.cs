@@ -5,5 +5,8 @@
         public string ConnectionString { get; set; }
 
         public string JWTSecret { get; set; }
+
+        public string PythonPath { get; set; }
+        public string PredictionScriptPath { get; set; }
     }
 }

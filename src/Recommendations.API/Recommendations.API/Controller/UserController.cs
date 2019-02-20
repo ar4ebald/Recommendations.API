@@ -45,14 +45,14 @@ namespace Recommendations.API.Controller
                     "GetUserOrders",
                     "User",
                     new { id },
-                    Request.Scheme
+                    "https"
                 ),
 
                 RecommendationLink = Url.Action(
                     "GetUserRecommendations",
                     "User",
                     new { id },
-                    Request.Scheme
+                    "https"
                 )
             });
         }

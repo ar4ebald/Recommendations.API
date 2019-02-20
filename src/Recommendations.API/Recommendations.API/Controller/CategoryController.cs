@@ -36,7 +36,7 @@ namespace Recommendations.API.Controller
                     "GetCategory",
                     "Category",
                     new { id = model.ParentID.Value },
-                    Request.Scheme
+                    "https"
                 );
             }
 
