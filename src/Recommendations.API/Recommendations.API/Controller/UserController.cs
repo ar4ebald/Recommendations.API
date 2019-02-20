@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -59,18 +60,39 @@ namespace Recommendations.API.Controller
         [HttpGet("user/{id}/orders")]
         [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IEnumerable<string>> GetUserOrders(int id)
+        public async Task<IEnumerable<Order>> GetUserOrders(int id)
         {
             const int dummyLimit = 1024;
 
-            var orderIDs = await _client.GetUserOrders(id, 0, dummyLimit);
+            var orders = await _client.GetUserOrders(id, 0, dummyLimit);
+            var productIDs = orders
+                .SelectMany(order => order.ProductIDs)
+                .Distinct()
+                .ToList();
 
-            return orderIDs.ConvertAll(orderID => Url.Action(
-                "GetOrder",
-                "Order",
-                new { id = orderID },
-                Request.Scheme
-            ));
+            var products = await _client.GetProducts(productIDs);
+            var categoriesIDs = products
+                .Select(product => product.CategoryID)
+                .Distinct()
+                .ToList();
+
+            var categories = await _client.GetCategories(categoriesIDs);
+
+            var categoryByID = categories.ToDictionary(
+                x => x.ID,
+                x => new Category { ID = x.ID, Name = x.Name }
+            );
+            var productByID = products.ToDictionary(
+                x => x.ID,
+                x => new Product { ID = x.ID, Name = x.Name, Category = categoryByID[x.CategoryID] }
+            );
+
+            return orders.ConvertAll(order => new Order
+            {
+                ID = order.Order.ID,
+                Day = order.Order.Day,
+                Products = Array.ConvertAll(order.ProductIDs, productID => productByID[productID])
+            });
         }
 
         [HttpGet("user/{id}/recommendations")]
@@ -80,15 +102,31 @@ namespace Recommendations.API.Controller
         {
             var recommendations = await _recommendationService.Get(id);
 
+            var productIDs = recommendations
+                .Select(x => x.ProductID)
+                .Distinct()
+                .ToList();
+            var products = await _client.GetProducts(productIDs);
+
+            var categoriesIDs = products
+                .Select(product => product.CategoryID)
+                .Distinct()
+                .ToList();
+            var categories = await _client.GetCategories(categoriesIDs);
+
+            var categoryByID = categories.ToDictionary(
+                x => x.ID,
+                x => new Category { ID = x.ID, Name = x.Name }
+            );
+            var productByID = products.ToDictionary(
+                x => x.ID,
+                x => new Product { ID = x.ID, Name = x.Name, Category = categoryByID[x.CategoryID] }
+            );
+
             return recommendations.Select(x => new Recommendation
             {
                 Score = x.Score,
-                ProductLink = Url.Action(
-                    "GetProduct",
-                    "Product",
-                    new { id = x.ProductID },
-                    Request.Scheme
-                )
+                Product = productByID[x.ProductID]
             }).ToList();
         }
     }

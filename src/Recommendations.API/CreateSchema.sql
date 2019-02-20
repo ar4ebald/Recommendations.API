@@ -136,10 +136,26 @@ as $$
   select * from rdb.product where id = p_id;
 $$ language sql;
 
+create or replace function rdb.get_products(p_id integer[])
+  returns setof rdb.product
+as $$
+  select p.*
+  from unnest(p_id) ids(id)
+  join rdb.product p on p.id = ids.id
+$$ language sql;
+
 create or replace function rdb.get_category(p_id integer)
   returns setof rdb.category
 as $$
   select * from rdb.category where id = p_id;
+$$ language sql;
+
+create or replace function rdb.get_categories(p_id integer[])
+  returns setof rdb.category
+as $$
+  select c.*
+  from unnest(p_id) ids(id)
+  join rdb.category c on c.id = ids.id
 $$ language sql;
 
 create or replace function rdb.get_order(p_id integer)
@@ -157,12 +173,14 @@ as $$
 $$ language sql;
 
 create or replace function rdb.get_user_orders(p_user_id integer, p_offset integer, p_limit integer)
-  returns table(order_id integer)
+  returns table(id integer, day integer, user_id integer, product_ids integer [])
 as $$
-  select id from rdb.order
+  select id, day, user_id, ARRAY(select product_id from rdb.order_entry where order_id = rdb.order.id)
+  from rdb.order
   where user_id = p_user_id
   order by day desc, id
-  offset p_offset limit p_limit
+  offset p_offset
+  limit p_limit
 $$ language sql;
 
 create or replace function rdb.search_category(p_prefix text, p_limit integer)

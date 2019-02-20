@@ -30,16 +30,17 @@ namespace Recommendations.API.Controller
             if (model == null)
                 return NotFound();
 
+            var category = await _client.GetCategory(id);
+
             return Ok(new Product
             {
                 ID = model.ID,
                 Name = model.Name,
-                CategoryLink = Url.Action(
-                    "GetCategory",
-                    "Category",
-                    new { id = model.CategoryID },
-                    Request.Scheme
-                )
+                Category = new Category
+                {
+                    ID = category.ID,
+                    Name = category.Name
+                }
             });
         }
     }

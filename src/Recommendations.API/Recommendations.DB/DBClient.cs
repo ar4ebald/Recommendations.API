@@ -178,6 +178,32 @@ namespace Recommendations.DB
             }
         }
 
+        public async Task<List<Product>> GetProducts(IList<int> ids)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_products"))
+            {
+                command.Parameters.AddWithValue("p_id", ids);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    var result = new List<Product>();
+
+                    while (await reader.ReadAsync())
+                    {
+                        result.Add(new Product
+                        {
+                            ID = reader.GetFieldValue<int>(0),
+                            Name = reader.GetFieldValue<string>(1),
+                            CategoryID = reader.GetFieldValue<int>(2)
+                        });
+                    }
+
+                    return result;
+                }
+            }
+        }
+
         public async Task<Category> GetCategory(int id)
         {
             using (var connection = await Connect())
@@ -196,6 +222,32 @@ namespace Recommendations.DB
                         Name = reader.GetFieldValue<string>(1),
                         ParentID = reader.GetFieldValue<int?>(2)
                     };
+                }
+            }
+        }
+
+        public async Task<List<Category>> GetCategories(IList<int> ids)
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_categories"))
+            {
+                command.Parameters.AddWithValue("p_id", ids);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    var result = new List<Category>();
+
+                    while (await reader.ReadAsync())
+                    {
+                        result.Add(new Category
+                        {
+                            ID = reader.GetFieldValue<int>(0),
+                            Name = reader.GetFieldValue<string>(1),
+                            ParentID = reader.GetFieldValue<int?>(2)
+                        });
+                    }
+
+                    return result;
                 }
             }
         }
@@ -274,7 +326,7 @@ namespace Recommendations.DB
             }
         }
 
-        public async Task<List<int>> GetUserOrders(int userID, int offset, int limit)
+        public async Task<List<(Order Order, int[] ProductIDs)>> GetUserOrders(int userID, int offset, int limit)
         {
             using (var connection = await Connect())
             using (var command = Call(connection, Scheme + ".get_user_orders"))
@@ -285,10 +337,20 @@ namespace Recommendations.DB
 
                 using (var reader = await command.ExecuteReaderAsync())
                 {
-                    var result = new List<int>();
+                    var result = new List<(Order Order, int[] ProductIDs)>();
 
                     while (await reader.ReadAsync())
-                        result.Add(reader.GetFieldValue<int>(0));
+                    {
+                        var order = new Order
+                        {
+                            ID = reader.GetFieldValue<int>(0),
+                            Day = reader.GetFieldValue<int>(1),
+                            UserID = reader.GetFieldValue<int>(2)
+                        };
+                        var productIDs = reader.GetFieldValue<int[]>(3);
+
+                        result.Add((order, productIDs));
+                    }
 
                     return result;
                 }

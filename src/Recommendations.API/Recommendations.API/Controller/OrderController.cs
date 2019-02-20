@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -31,24 +31,27 @@ namespace Recommendations.API.Controller
             if (model == null)
                 return NotFound();
 
+            var products = await _client.GetProducts(productIDs);
+
+            var categoryIDs = products.Select(x => x.CategoryID).Distinct().ToList();
+            var categories = await _client.GetCategories(categoryIDs);
+
+            var categoryByID = categories.ToDictionary(
+                x => x.ID,
+                x => new Category { ID = x.ID, Name = x.Name }
+            );
+
             var order = new Order
             {
                 ID = model.ID,
                 Day = model.Day,
 
-                UserLink = Url.Action(
-                    "GetUser",
-                    "User",
-                    new { id = model.UserID },
-                    Request.Scheme
-                ),
-
-                ProductsLinks = Array.ConvertAll(productIDs, productID => Url.Action(
-                    "GetProduct",
-                    "Product",
-                    new { id = productID },
-                    Request.Scheme
-                ))
+                Products = products.ConvertAll(product => new Product
+                {
+                    ID = product.ID,
+                    Name = product.Name,
+                    Category = categoryByID[product.CategoryID]
+                })
             };
 
             return Ok(order);
