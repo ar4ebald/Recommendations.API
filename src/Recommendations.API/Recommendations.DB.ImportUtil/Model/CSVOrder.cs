@@ -2,7 +2,7 @@
 
 namespace Recommendations.DB.ImportUtil.Model
 {
-    class CSVOrder
+    struct CSVOrder
     {
         [Name("order_id")]
         public int OrderID { get; set; }

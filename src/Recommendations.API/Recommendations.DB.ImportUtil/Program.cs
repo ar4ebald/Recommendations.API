@@ -135,41 +135,66 @@ namespace Recommendations.DB.ImportUtil
         {
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader))
+            using (var orderConnection = await client.Connect())
+            using (var e = csv.GetRecords<CSVOrder>().GetEnumerator())
             {
                 var addedOrdersIDs = new HashSet<int>();
                 int total = 0;
 
-                using (var entryConnection = await client.Connect())
-                using (var entryWriter = entryConnection.BeginBinaryImport("COPY rdb.order_entry (order_id, product_id) FROM STDIN (FORMAT BINARY)"))
+                const string copyOrderCommand = "COPY rdb.order (id, user_id, day) FROM STDIN (FORMAT BINARY)";
+
+                bool haveMore;
+                do
                 {
-                    using (var orderConnection = await client.Connect())
-                    using (var orderWriter = orderConnection.BeginBinaryImport("COPY rdb.order (id, user_id, day) FROM STDIN (FORMAT BINARY)"))
+                    using (var orderWriter = orderConnection.BeginBinaryImport(copyOrderCommand))
                     {
-                        foreach (var entry in csv.GetRecords<CSVOrder>())
+                        while ((haveMore = e.MoveNext()) && ++total % 100000 != 0)
                         {
-                            if (addedOrdersIDs.Add(entry.OrderID))
+                            if (addedOrdersIDs.Add(e.Current.OrderID))
                             {
                                 orderWriter.StartRow();
-                                orderWriter.Write(entry.OrderID);
-                                orderWriter.Write(entry.UserID);
-                                orderWriter.Write(entry.Day);
+                                orderWriter.Write(e.Current.OrderID);
+                                orderWriter.Write(e.Current.UserID);
+                                orderWriter.Write(e.Current.Day);
                             }
-
-                            entryWriter.StartRow();
-                            entryWriter.Write(entry.OrderID);
-                            entryWriter.Write(entry.ProductID);
-
-                            if (++total % 100000 == 0)
-                                Console.Write($"{path} users: {total}\r");
                         }
 
                         orderWriter.Complete();
+                        Console.Write($"{path} users: {total}\r");
+                    }
+                } while (haveMore);
+
+                Console.WriteLine();
+            }
+
+            using (var reader = new StreamReader(path))
+            using (var csv = new CsvReader(reader))
+            using (var entryConnection = await client.Connect())
+            using (var e = csv.GetRecords<CSVOrder>().GetEnumerator())
+            {
+                int total = 0;
+
+                const string entryOrderCommand = "COPY rdb.order_entry (order_id, product_id) FROM STDIN (FORMAT BINARY)";
+
+                bool haveMore;
+                do
+                {
+                    using (var entryWriter = entryConnection.BeginBinaryImport(entryOrderCommand))
+                    {
+                        while ((haveMore = e.MoveNext()) && ++total % 100000 != 0)
+                        {
+                            entryWriter.StartRow();
+                            entryWriter.Write(e.Current.OrderID);
+                            entryWriter.Write(e.Current.ProductID);
+                        }
+
+                        entryWriter.Complete();
+                        Console.Write($"{path} users: {total}\r");
                     }
 
-                    entryWriter.Complete();
-                }
+                } while (haveMore);
 
-                Console.WriteLine($"{path} users: {total}");
+                Console.WriteLine();
             }
         }
     }
