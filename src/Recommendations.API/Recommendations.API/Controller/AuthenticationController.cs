@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Recommendations.API.Model;
 using Recommendations.API.Model.Requests;
+using Recommendations.API.Model.ViewModels;
 using Recommendations.API.Services;
 
 namespace Recommendations.API.Controller
@@ -22,10 +23,16 @@ namespace Recommendations.API.Controller
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Authenticate(AuthenticationRequest request)
         {
-            var (status, token) = await _authenticationService.Authenticate(request.Login, request.Password);
+            var (status, token, roles) = await _authenticationService.Authenticate(request.Login, request.Password);
 
             if (status == AuthenticationStatus.OK)
-                return Ok(token);
+            {
+                return Ok(new AuthenticationResult
+                {
+                    Token = "Bearer " + token,
+                    Roles = roles
+                });
+            }
 
             return Unauthorized(status.ToString());
         }

@@ -12,7 +12,7 @@ namespace Recommendations.API.Services
 {
     public interface IAuthenticationService
     {
-        Task<(AuthenticationStatus Status, string Token)> Authenticate(string login, string password);
+        Task<(AuthenticationStatus Status, string Token, string[] Roles)> Authenticate(string login, string password);
     }
 
     public class AuthenticationService : IAuthenticationService
@@ -31,12 +31,12 @@ namespace Recommendations.API.Services
             _tokenHandler = new JwtSecurityTokenHandler();
         }
 
-        public async Task<(AuthenticationStatus Status, string Token)> Authenticate(string login, string password)
+        public async Task<(AuthenticationStatus Status, string Token, string[] Roles)> Authenticate(string login, string password)
         {
             var (@operator, expectedPassword) = await _client.GetOperator(login);
 
             if (password != expectedPassword)
-                return (AuthenticationStatus.InvalidLoginOrPassword, null);
+                return (AuthenticationStatus.InvalidLoginOrPassword, null, null);
 
             var descriptor = new SecurityTokenDescriptor
             {
@@ -51,7 +51,7 @@ namespace Recommendations.API.Services
             var token = _tokenHandler.CreateToken(descriptor);
             var tokenString = _tokenHandler.WriteToken(token);
 
-            return (AuthenticationStatus.OK, tokenString);
+            return (AuthenticationStatus.OK, tokenString, @operator.Roles);
         }
     }
 }
