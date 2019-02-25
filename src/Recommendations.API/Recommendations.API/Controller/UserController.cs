@@ -84,7 +84,14 @@ namespace Recommendations.API.Controller
             );
             var productByID = products.ToDictionary(
                 x => x.ID,
-                x => new Product { ID = x.ID, Name = x.Name, Category = categoryByID[x.CategoryID] }
+                x => new Product
+                {
+                    ID = x.ID,
+                    Name = x.Name,
+                    Category = categoryByID[x.CategoryID],
+                    Age = x.Age,
+                    Sex = x.Sex
+                }
             );
 
             return orders.ConvertAll(order => new Order
@@ -108,7 +115,16 @@ namespace Recommendations.API.Controller
                 .ToList();
             var products = await _client.GetProducts(productIDs);
 
+            var additionalProductIDs = products
+                .SelectMany(p => p.PurchasedWith)
+                .Except(productIDs)
+                .Distinct()
+                .ToList();
+
+            var additionalProducts = await _client.GetProducts(additionalProductIDs);
+
             var categoriesIDs = products
+                .Concat(additionalProducts)
                 .Select(product => product.CategoryID)
                 .Distinct()
                 .ToList();
@@ -118,15 +134,30 @@ namespace Recommendations.API.Controller
                 x => x.ID,
                 x => new Category { ID = x.ID, Name = x.Name }
             );
-            var productByID = products.ToDictionary(
-                x => x.ID,
-                x => new Product { ID = x.ID, Name = x.Name, Category = categoryByID[x.CategoryID] }
-            );
+            var productByID = products
+                .Concat(additionalProducts)
+                .ToDictionary(
+                    x => x.ID,
+                    x => new Product
+                    {
+                        ID = x.ID,
+                        Name = x.Name,
+                        Category = categoryByID[x.CategoryID],
+                        Age = x.Age,
+                        Sex = x.Sex
+                    }
+                );
+
+            var purchasedWithByID = products.ToDictionary(x => x.ID, x => x.PurchasedWith);
 
             return recommendations.Select(x => new Recommendation
             {
                 Score = x.Score,
-                Product = productByID[x.ProductID]
+                Product = productByID[x.ProductID],
+
+                PurchasedWith = purchasedWithByID[x.ProductID]
+                    .Select(i => productByID[i])
+                    .ToArray()
             }).ToList();
         }
     }

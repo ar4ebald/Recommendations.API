@@ -110,7 +110,9 @@ namespace Recommendations.DB
                     {
                         ID = reader.GetFieldValue<int>(0),
                         Name = reader.GetFieldValue<string>(1),
-                        CategoryID = reader.GetFieldValue<int>(2)
+                        CategoryID = reader.GetFieldValue<int>(2),
+                        Age = reader.GetFieldValue<double>(3),
+                        Sex = reader.GetFieldValue<Sex>(4)
                     };
                 }
             }
@@ -133,7 +135,10 @@ namespace Recommendations.DB
                         {
                             ID = reader.GetFieldValue<int>(0),
                             Name = reader.GetFieldValue<string>(1),
-                            CategoryID = reader.GetFieldValue<int>(2)
+                            CategoryID = reader.GetFieldValue<int>(2),
+                            Age = reader.GetFieldValue<double>(3),
+                            Sex = reader.GetFieldValue<Sex>(4),
+                            PurchasedWith = reader.GetFieldValue<int[]>(5)
                         });
                     }
 

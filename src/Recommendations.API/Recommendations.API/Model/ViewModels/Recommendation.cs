@@ -4,5 +4,6 @@
     {
         public double Score { get; set; }
         public Product Product { get; set; }
+        public Product[] PurchasedWith { get; set; }
     }
 }

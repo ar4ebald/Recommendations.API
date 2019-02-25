@@ -50,6 +50,8 @@ namespace Recommendations.API.Controller
                 {
                     ID = product.ID,
                     Name = product.Name,
+                    Age = product.Age,
+                    Sex = product.Sex,
                     Category = categoryByID[product.CategoryID]
                 })
             };

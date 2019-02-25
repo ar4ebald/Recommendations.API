@@ -1,4 +1,6 @@
-﻿namespace Recommendations.API.Model.ViewModels
+﻿using Recommendations.Model;
+
+namespace Recommendations.API.Model.ViewModels
 {
     public class Product
     {
@@ -6,5 +8,8 @@
         public string Name { get; set; }
         
         public Category Category { get; set; }
+
+        public double Age { get; set; }
+        public Sex Sex { get; set; }
     }
 }

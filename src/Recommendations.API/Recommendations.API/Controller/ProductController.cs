@@ -36,6 +36,8 @@ namespace Recommendations.API.Controller
             {
                 ID = model.ID,
                 Name = model.Name,
+                Age = model.Age,
+                Sex = model.Sex,
                 Category = new Category
                 {
                     ID = category.ID,
