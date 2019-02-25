@@ -1,10 +1,8 @@
-﻿using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
-using Recommendations.DB;
+using Recommendations.API.Model.Settings;
+using Recommendations.API.Services;
 
 namespace Recommendations.API.Controller
 {
@@ -12,29 +10,17 @@ namespace Recommendations.API.Controller
     [Authorize]
     public class SettingsController : ControllerBase
     {
-        const string ConfigPath = "globalConfiguration.json";
+        readonly IConfigurationRepository _configurationRepository;
 
-        readonly DBClient _client;
-
-        public SettingsController(DBClient client)
+        public SettingsController(IConfigurationRepository configurationRepository)
         {
-            _client = client;
+            _configurationRepository = configurationRepository;
         }
 
         [HttpGet("settings")]
-        public IActionResult GetSettings() => File(ConfigPath, "application/json");
+        public GlobalConfiguration GetSettings() => _configurationRepository.Instance;
 
         [HttpPut("settings")]
-        public async Task<IActionResult> SetSettings([FromBody] JToken json, [FromServices]IHostingEnvironment env)
-        {
-            var settingsJson = json.ToString();
-
-            await System.IO.File.WriteAllTextAsync(
-                Path.Combine(env.WebRootPath, ConfigPath),
-                settingsJson
-            );
-
-            return NoContent();
-        }
+        public void SetSettings([FromBody] GlobalConfiguration json, [FromServices]IHostingEnvironment env) => _configurationRepository.Instance = json;
     }
 }

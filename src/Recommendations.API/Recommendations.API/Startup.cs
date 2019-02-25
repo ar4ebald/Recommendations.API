@@ -36,6 +36,7 @@ namespace Recommendations.API
             );
             services.AddSingleton<IAuthenticationService, AuthenticationService>();
             services.AddSingleton<IRecommendationService, RecommendationService>();
+            services.AddSingleton<IConfigurationRepository, ConfigurationRepository>();
 
             services
                 .AddMvc()

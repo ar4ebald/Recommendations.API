@@ -105,7 +105,7 @@ namespace Recommendations.API.Controller
         [HttpGet("user/{id}/recommendations")]
         [ProducesResponseType(typeof(Recommendation[]), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IEnumerable<Recommendation>> GetUserRecommendations(int id)
+        public async Task<IEnumerable<Recommendation>> GetUserRecommendations(int id, [FromServices]IConfigurationRepository configurationRepository)
         {
             var recommendations = await _recommendationService.Get(id);
 
@@ -150,15 +150,28 @@ namespace Recommendations.API.Controller
 
             var purchasedWithByID = products.ToDictionary(x => x.ID, x => x.PurchasedWith);
 
-            return recommendations.Select(x => new Recommendation
-            {
-                Score = x.Score,
-                Product = productByID[x.ProductID],
+            var config = configurationRepository.Instance;
 
-                PurchasedWith = purchasedWithByID[x.ProductID]
-                    .Select(i => productByID[i])
-                    .ToArray()
-            }).ToList();
+            var filteredCategories = new HashSet<int>(
+                (config?.FilteredCategories ?? Array.Empty<Category>()).Select(x => x.ID)
+            );
+            var minScore = config?.Score ?? double.MinValue;
+            var count = config?.Count ?? int.MaxValue;
+
+            return recommendations
+                .Where(x => x.Score > minScore && !filteredCategories.Contains(productByID[x.ProductID].Category.ID))
+                .OrderByDescending(x => x.Score)
+                .Take(count)
+                .Select(x => new Recommendation
+                {
+                    Score   = x.Score,
+                    Product = productByID[x.ProductID],
+
+                    PurchasedWith = purchasedWithByID[x.ProductID]
+                        .Select(i => productByID[i])
+                        .ToArray()
+                })
+                .ToList();
         }
     }
 }
