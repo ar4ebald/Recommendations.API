@@ -18,5 +18,12 @@ namespace Recommendations.DB.ImportUtil.Model
         public int DepartmentID { get; set; }
         [Name("department")]
         public string Department { get; set; }
+
+        [Name("age")]
+        public double Age { get; set; }
+        [Name("sex")]
+        public string Sex { get; set; }
+        [Name("with_products")]
+        public string PurchasedWith { get; set; }
     }
 }

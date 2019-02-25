@@ -28,7 +28,7 @@ namespace Recommendations.DB
             _connectionString = connectionString;
         }
 
-        async Task<NpgsqlConnection> Connect()
+        public async Task<NpgsqlConnection> Connect()
         {
             var connection = new NpgsqlConnection(_connectionString);
             try
@@ -70,39 +70,6 @@ namespace Recommendations.DB
                 command.Parameters.AddWithValue("p_name", names);
                 command.Parameters.AddWithValue("p_parent_id", parentIDs);
 
-                await command.ExecuteNonQueryAsync();
-            }
-        }
-
-        public async Task AddProduct(IList<int> ids, IList<string> names, IList<int> categoryIDs)
-        {
-            using (var connection = await Connect())
-            using (var command = Call(connection, Scheme + ".add_product"))
-            {
-                command.Parameters.AddWithValue("p_id", ids);
-                command.Parameters.AddWithValue("p_name", names);
-                command.Parameters.AddWithValue("p_category_id", categoryIDs);
-
-                await command.ExecuteNonQueryAsync();
-            }
-        }
-
-        public async Task AddOrder(IList<Order> orders)
-        {
-            using (var connection = await Connect())
-            using (var command = Call(connection, Scheme + ".add_order"))
-            {
-                command.Parameters.AddWithValue("p_orders", orders);
-                await command.ExecuteNonQueryAsync();
-            }
-        }
-
-        public async Task AddOrderEntry(IList<OrderEntry> entries)
-        {
-            using (var connection = await Connect())
-            using (var command = Call(connection, Scheme + ".add_order_entry"))
-            {
-                command.Parameters.AddWithValue("p_entries", entries);
                 await command.ExecuteNonQueryAsync();
             }
         }

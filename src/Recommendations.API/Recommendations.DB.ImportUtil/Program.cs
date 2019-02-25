@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CsvHelper;
+using CsvHelper.Configuration;
+using NpgsqlTypes;
 using Recommendations.DB.ImportUtil.Model;
 using Recommendations.Model;
 
@@ -21,7 +23,7 @@ namespace Recommendations.DB.ImportUtil
             var client = new DBClient(connectionString);
 
             await ImportUsers(Path.Combine(root, "users.csv"), client);
-            await ImportProducts(Path.Combine(root, "products.csv"), client);
+            await ImportProducts(Path.Combine(root, "products_with_stats_20.csv"), client);
             await ImportOrders(Path.Combine(root, "orders.csv"), client);
         }
 
@@ -71,7 +73,7 @@ namespace Recommendations.DB.ImportUtil
             CSVProduct[] products;
 
             using (var reader = new StreamReader(path))
-            using (var csv = new CsvReader(reader))
+            using (var csv = new CsvReader(reader, new Configuration { Delimiter = "," }))
                 products = csv.GetRecords<CSVProduct>().ToArray();
 
             var departmentIDsOffset = products.Max(x => x.AisleID) + 1;
@@ -103,20 +105,30 @@ namespace Recommendations.DB.ImportUtil
             Console.WriteLine($"{path} departments: {departments.Count}");
             Console.WriteLine($"{path} aisles: {aisles.Count}");
 
-            int total = 0;
-            foreach (var batch in ToBatches(products))
+            var separators = new[] {',', ' ', '[', ']'};
+
+            using (var connection = await client.Connect())
+            using (var writer = connection.BeginBinaryImport("COPY rdb.product (id, name, category_id, age, sex, purchased_with) FROM STDIN (FORMAT BINARY)"))
             {
-                await client.AddProduct(
-                    batch.ConvertAll(x => x.ProductID),
-                    batch.ConvertAll(x => x.ProductName),
-                    batch.ConvertAll(x => x.AisleID)
-                );
+                foreach (var product in products)
+                {
+                    var purchasedWith = product.PurchasedWith
+                        .Substring(1, product.PurchasedWith.Length - 2)
+                        .Split(separators, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(int.Parse)
+                        .ToArray();
 
-                total += batch.Count;
-                Console.Write($"{path} products: {total}\r");
+                    writer.StartRow();
+                    writer.Write(product.ProductID);
+                    writer.Write(product.ProductName);
+                    writer.Write(product.AisleID);
+                    writer.Write(product.Age);
+                    writer.Write(product.Sex == "M" ? Sex.Male : Sex.Female);
+                    writer.Write(purchasedWith);
+                }
+
+                writer.Complete();
             }
-
-            Console.WriteLine();
         }
 
         static async Task ImportOrders(string path, DBClient client)
@@ -124,39 +136,40 @@ namespace Recommendations.DB.ImportUtil
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader))
             {
-                int total = 0;
                 var addedOrdersIDs = new HashSet<int>();
-                var orders = new List<Order>();
+                int total = 0;
 
-                foreach (var batch in ToBatches(csv.GetRecords<CSVOrder>()))
+                using (var entryConnection = await client.Connect())
+                using (var entryWriter = entryConnection.BeginBinaryImport("COPY rdb.order_entry (order_id, product_id) FROM STDIN (FORMAT BINARY)"))
                 {
-                    foreach (var x in batch)
+                    using (var orderConnection = await client.Connect())
+                    using (var orderWriter = orderConnection.BeginBinaryImport("COPY rdb.order (id, user_id, day) FROM STDIN (FORMAT BINARY)"))
                     {
-                        if (!addedOrdersIDs.Add(x.OrderID))
-                            continue;
-
-                        orders.Add(new Order
+                        foreach (var entry in csv.GetRecords<CSVOrder>())
                         {
-                            ID = x.OrderID,
-                            UserID = x.UserID,
-                            Day = x.Day
-                        });
+                            if (addedOrdersIDs.Add(entry.OrderID))
+                            {
+                                orderWriter.StartRow();
+                                orderWriter.Write(entry.OrderID);
+                                orderWriter.Write(entry.UserID);
+                                orderWriter.Write(entry.Day);
+                            }
+
+                            entryWriter.StartRow();
+                            entryWriter.Write(entry.OrderID);
+                            entryWriter.Write(entry.ProductID);
+
+                            if (++total % 100000 == 0)
+                                Console.Write($"{path} users: {total}\r");
+                        }
+
+                        orderWriter.Complete();
                     }
 
-                    await client.AddOrder(orders);
-                    orders.Clear();
-
-                    await client.AddOrderEntry(batch.ConvertAll(x => new OrderEntry
-                    {
-                        OrderID = x.OrderID,
-                        ProductID = x.ProductID
-                    }));
-
-                    total += batch.Count;
-                    Console.Write($"{path} orders: {addedOrdersIDs.Count}, entries: {total}\r");
+                    entryWriter.Complete();
                 }
 
-                Console.WriteLine();
+                Console.WriteLine($"{path} users: {total}");
             }
         }
     }

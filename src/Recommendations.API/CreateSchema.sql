@@ -35,10 +35,15 @@ create table rdb.category (
 create index on rdb.category (name text_pattern_ops);
 
 create table rdb.product (
-  id          serial primary key,
+  id             serial primary key,
 
-  name        text unique not null check (name <> ''),
-  category_id integer     not null references rdb.category (id)
+  name           text unique      not null check (name <> ''),
+  category_id    integer          not null references rdb.category (id),
+
+  age            double precision not null,
+  sex            rdb.sex          not null,
+
+  purchased_with integer[]        not null
 );
 
 create table rdb.order (
@@ -80,33 +85,6 @@ as $$
 insert into rdb.category(id, name, parent_id)
 select id, name, nullif(parent_id, 0)
 from unnest(p_id, p_name, p_parent_id) inserting(id, name, parent_id)
-$$
-language sql;
-
-create or replace function rdb.add_product(p_id integer [], p_name text [], p_category_id integer [])
-  returns void
-as $$
-insert into rdb.product(id, name, category_id)
-select id, name, category_id
-from unnest(p_id, p_name, p_category_id) inserting(id, name, category_id)
-$$
-language sql;
-
-create or replace function rdb.add_order(p_orders rdb.order_type [])
-  returns void
-as $$
-insert into rdb.order(id, user_id, day)
-select id, user_id, day
-from unnest(p_orders) inserting(id, user_id, day)
-$$
-language sql;
-
-create or replace function rdb.add_order_entry(p_entries rdb.order_entry_type [])
-  returns void
-as $$
-insert into rdb.order_entry(order_id, product_id)
-select order_id, product_id
-from unnest(p_entries) inserting(order_id, product_id)
 $$
 language sql;
 
