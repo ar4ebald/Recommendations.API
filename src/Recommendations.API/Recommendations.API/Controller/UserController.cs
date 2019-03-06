@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -17,11 +19,13 @@ namespace Recommendations.API.Controller
     {
         readonly DBClient _client;
         readonly IRecommendationService _recommendationService;
+        readonly IConfigurationRepository _configurationRepository;
 
-        public UserController(DBClient client, IRecommendationService recommendationService)
+        public UserController(DBClient client, IRecommendationService recommendationService, IConfigurationRepository configurationRepository)
         {
             _client = client;
             _recommendationService = recommendationService;
+            _configurationRepository = configurationRepository;
         }
 
         [HttpGet("user/{id}")]
@@ -105,7 +109,7 @@ namespace Recommendations.API.Controller
         [HttpGet("user/{id}/recommendations")]
         [ProducesResponseType(typeof(Recommendation[]), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IEnumerable<Recommendation>> GetUserRecommendations(int id, [FromServices]IConfigurationRepository configurationRepository)
+        public async Task<IEnumerable<Recommendation>> GetUserRecommendations(int id)
         {
             var recommendations = await _recommendationService.Get(id);
 
@@ -150,7 +154,7 @@ namespace Recommendations.API.Controller
 
             var purchasedWithByID = products.ToDictionary(x => x.ID, x => x.PurchasedWith);
 
-            var config = configurationRepository.Instance;
+            var config = _configurationRepository.Instance;
 
             var filteredCategories = new HashSet<int>(
                 (config?.FilteredCategories ?? Array.Empty<Category>()).Select(x => x.ID)
@@ -172,6 +176,55 @@ namespace Recommendations.API.Controller
                         .ToArray()
                 })
                 .ToList();
+        }
+
+        [HttpGet("user/all/recommendations")]
+        public async Task<IActionResult> GetAllRecommendations()
+        {
+            var allIds = await _client.GetAllUserIDs();
+            allIds = allIds.Take(1000).ToArray();
+
+            var server = new AnonymousPipeServerStream(PipeDirection.Out);
+
+            _ = Task.Run(() => FillPipe(server, allIds));
+
+            var client = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+            return File(client, "text/csv", "report.csv");
+        }
+
+        async Task FillPipe(Stream pipe, int[] userIDs)
+        {
+            var config = _configurationRepository.Instance;
+
+            var filteredCategories = new HashSet<int>(
+                (config?.FilteredCategories ?? Array.Empty<Category>()).Select(x => x.ID)
+            );
+            var minScore = config?.Score ?? double.MinValue;
+            var count    = config?.Count ?? int.MaxValue;
+
+            using (var writer = new StreamWriter(pipe))
+            {
+                await writer.WriteLineAsync("userId;productId;productName;score");
+                foreach (var userID in userIDs)
+                {
+                    var recommendations = await _recommendationService.Get(userID);
+
+                    var productIDs = recommendations.Select(x => x.ProductID).ToList();
+                    var productByID = (await _client.GetProducts(productIDs)).ToDictionary(x => x.ID);
+
+                    var filtered = recommendations
+                        .Where(x => x.Score > minScore && !filteredCategories.Contains(productByID[x.ProductID].CategoryID))
+                        .OrderByDescending(x => x.Score)
+                        .Take(count);
+
+                    foreach (var rec in filtered)
+                    {
+                        var name = productByID[rec.ProductID].Name;
+                        name = name.Replace("\"", "\"\"");
+                        await writer.WriteLineAsync($"{userID};{rec.ProductID};\"{name}\";{rec.Score}");
+                    }
+                }
+            }
         }
     }
 }

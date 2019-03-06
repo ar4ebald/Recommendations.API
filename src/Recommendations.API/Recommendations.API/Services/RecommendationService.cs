@@ -1,8 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,6 +18,8 @@ namespace Recommendations.API.Services
 
     public class RecommendationService : IRecommendationService
     {
+        readonly SemaphoreSlim _lock = new SemaphoreSlim(1);
+
         readonly GlobalOptions _options;
         readonly ILogger<RecommendationService> _log;
 
@@ -44,9 +46,19 @@ namespace Recommendations.API.Services
 
         public async Task<IReadOnlyList<(double Score, int ProductID)>> Get(int userID)
         {
-            _log.LogWarning($"Write to STDIN: {userID}");
-            await _pythonProcess.StandardInput.WriteLineAsync(userID.ToString());
-            var responseJson = await _pythonProcess.StandardOutput.ReadLineAsync();
+            await _lock.WaitAsync();
+            string responseJson;
+            try
+            {
+                _log.LogWarning($"Write to STDIN: {userID}");
+                await _pythonProcess.StandardInput.WriteLineAsync(userID.ToString());
+                responseJson = await _pythonProcess.StandardOutput.ReadLineAsync();
+            }
+            finally
+            {
+                _lock.Release();
+            }
+
             _log.LogWarning($"From to STDOUT: {responseJson}");
             var response = JsonConvert.DeserializeObject<PythonRecommendation[]>(responseJson);
 

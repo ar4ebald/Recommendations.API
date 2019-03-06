@@ -299,5 +299,20 @@ namespace Recommendations.DB
                 }
             }
         }
+
+        public async Task<int[]> GetAllUserIDs()
+        {
+            using (var connection = await Connect())
+            using (var command = Call(connection, Scheme + ".get_user_ids"))
+            {
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return default;
+
+                    return reader.GetFieldValue<int[]>(0);
+                }
+            }
+        }
     }
 }
