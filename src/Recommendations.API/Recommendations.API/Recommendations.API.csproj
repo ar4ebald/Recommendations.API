@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Recommendations.DB.ImportUtil\Recommendations.DB.ImportUtil.csproj" />
     <ProjectReference Include="..\Recommendations.DB\Recommendations.DB.csproj" />
   </ItemGroup>
 

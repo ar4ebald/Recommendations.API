@@ -7,5 +7,6 @@ namespace Recommendations.API.Model.Settings
         public double? Score { get; set; }
         public int? Count { get; set; }
         public Category[] FilteredCategories { get; set; }
+        public Category[] SelectedCategories { get; set; }
     }
 }

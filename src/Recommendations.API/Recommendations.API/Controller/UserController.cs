@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Recommendations.API.Model.ViewModels;
 using Recommendations.API.Services;
 using Recommendations.DB;
@@ -20,12 +21,14 @@ namespace Recommendations.API.Controller
         readonly DBClient _client;
         readonly IRecommendationService _recommendationService;
         readonly IConfigurationRepository _configurationRepository;
+        readonly ILogger<UserController> _log;
 
-        public UserController(DBClient client, IRecommendationService recommendationService, IConfigurationRepository configurationRepository)
+        public UserController(DBClient client, IRecommendationService recommendationService, IConfigurationRepository configurationRepository, ILogger<UserController> log)
         {
             _client = client;
             _recommendationService = recommendationService;
             _configurationRepository = configurationRepository;
+            _log = log;
         }
 
         [HttpGet("user/{id}")]
@@ -69,6 +72,9 @@ namespace Recommendations.API.Controller
             const int dummyLimit = 1024;
 
             var orders = await _client.GetUserOrders(id, 0, dummyLimit);
+
+            orders = orders.Skip(2).ToList();
+
             var productIDs = orders
                 .SelectMany(order => order.ProductIDs)
                 .Distinct()
@@ -159,11 +165,16 @@ namespace Recommendations.API.Controller
             var filteredCategories = new HashSet<int>(
                 (config?.FilteredCategories ?? Array.Empty<Category>()).Select(x => x.ID)
             );
+            var selectedCategories = config?.SelectedCategories?.Select(x => x.ID).ToHashSet();
             var minScore = config?.Score ?? double.MinValue;
             var count = config?.Count ?? int.MaxValue;
 
             return recommendations
-                .Where(x => x.Score > minScore && !filteredCategories.Contains(productByID[x.ProductID].Category.ID))
+                .Where(
+                    x => x.Score > minScore && 
+                         !filteredCategories.Contains(productByID[x.ProductID].Category.ID) && 
+                         (selectedCategories == null || selectedCategories.Contains(productByID[x.ProductID].Category.ID))
+                )
                 .OrderByDescending(x => x.Score)
                 .Take(count)
                 .Select(x => new Recommendation
@@ -182,7 +193,7 @@ namespace Recommendations.API.Controller
         public async Task<IActionResult> GetAllRecommendations()
         {
             var allIds = await _client.GetAllUserIDs();
-            allIds = allIds.Take(1000).ToArray();
+            allIds = allIds.OrderBy(x => x).Take(100).ToArray();
 
             var server = new AnonymousPipeServerStream(PipeDirection.Out);
 
@@ -199,6 +210,7 @@ namespace Recommendations.API.Controller
             var filteredCategories = new HashSet<int>(
                 (config?.FilteredCategories ?? Array.Empty<Category>()).Select(x => x.ID)
             );
+            var selectedCategories = config?.SelectedCategories?.Select(x => x.ID).ToHashSet();
             var minScore = config?.Score ?? double.MinValue;
             var count    = config?.Count ?? int.MaxValue;
 
@@ -207,21 +219,33 @@ namespace Recommendations.API.Controller
                 await writer.WriteLineAsync("userId;productId;productName;score");
                 foreach (var userID in userIDs)
                 {
-                    var recommendations = await _recommendationService.Get(userID);
-
-                    var productIDs = recommendations.Select(x => x.ProductID).ToList();
-                    var productByID = (await _client.GetProducts(productIDs)).ToDictionary(x => x.ID);
-
-                    var filtered = recommendations
-                        .Where(x => x.Score > minScore && !filteredCategories.Contains(productByID[x.ProductID].CategoryID))
-                        .OrderByDescending(x => x.Score)
-                        .Take(count);
-
-                    foreach (var rec in filtered)
+                    try
                     {
-                        var name = productByID[rec.ProductID].Name;
-                        name = name.Replace("\"", "\"\"");
-                        await writer.WriteLineAsync($"{userID};{rec.ProductID};\"{name}\";{rec.Score}");
+                        var recommendations = await _recommendationService.Get(userID);
+
+                        var productIDs  = recommendations.Select(x => x.ProductID).ToList();
+                        var productByID = (await _client.GetProducts(productIDs)).ToDictionary(x => x.ID);
+
+                        var filtered = recommendations
+                            .Where(
+                                x => x.Score > minScore &&
+                                     !filteredCategories.Contains(productByID[x.ProductID].CategoryID) &&
+                                     (selectedCategories == null ||
+                                      selectedCategories.Contains(productByID[x.ProductID].CategoryID))
+                            )
+                            .OrderByDescending(x => x.Score)
+                            .Take(count);
+
+                        foreach (var rec in filtered)
+                        {
+                            var name = productByID[rec.ProductID].Name;
+                            name = name.Replace("\"", "\"\"");
+                            await writer.WriteLineAsync($"{userID};{rec.ProductID};\"{name}\";{rec.Score}");
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        _log.LogError(exception, $"{nameof(FillPipe)} failed on userID:{userID}");
                     }
                 }
             }
