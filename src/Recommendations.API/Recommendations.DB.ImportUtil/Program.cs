@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
 using CsvHelper.Configuration;
-using NpgsqlTypes;
 using Recommendations.DB.ImportUtil.Model;
 using Recommendations.Model;
 
@@ -14,6 +16,13 @@ namespace Recommendations.DB.ImportUtil
     class Program
     {
         const int BatchSize = 1024 * 32;
+
+        static readonly Configuration _config;
+
+        static Program()
+        {
+            _config = new Configuration(CultureInfo.GetCultureInfo("ru-RU"));
+        }
 
         static async Task Main(string[] args)
         {
@@ -46,8 +55,8 @@ namespace Recommendations.DB.ImportUtil
 
         static async Task ImportUsers(string path, DBClient client)
         {
-            using (var reader = new StreamReader(path))
-            using (var csv = new CsvReader(reader))
+            using (var reader = new StreamReader(path, Encoding.UTF8))
+            using (var csv = new CsvReader(reader, _config))
             {
                 int total = 0;
 
@@ -72,8 +81,8 @@ namespace Recommendations.DB.ImportUtil
         {
             CSVProduct[] products;
 
-            using (var reader = new StreamReader(path))
-            using (var csv = new CsvReader(reader, new Configuration { Delimiter = "," }))
+            using (var reader = new StreamReader(path, Encoding.UTF8))
+            using (var csv = new CsvReader(reader, new Configuration(_config.CultureInfo) { Delimiter = "," }))
                 products = csv.GetRecords<CSVProduct>().ToArray();
 
             var departmentIDsOffset = products.Max(x => x.AisleID) + 1;
@@ -105,7 +114,7 @@ namespace Recommendations.DB.ImportUtil
             Console.WriteLine($"{path} departments: {departments.Count}");
             Console.WriteLine($"{path} aisles: {aisles.Count}");
 
-            var separators = new[] {',', ' ', '[', ']'};
+            var separators = new[] { ',', ' ', '[', ']' };
 
             using (var connection = await client.Connect())
             using (var writer = connection.BeginBinaryImport("COPY rdb.product (id, name, category_id, age, sex, purchased_with) FROM STDIN (FORMAT BINARY)"))
@@ -133,8 +142,8 @@ namespace Recommendations.DB.ImportUtil
 
         static async Task ImportOrders(string path, DBClient client)
         {
-            using (var reader = new StreamReader(path))
-            using (var csv = new CsvReader(reader))
+            using (var reader = new StreamReader(path, Encoding.UTF8))
+            using (var csv = new CsvReader(reader, _config))
             using (var orderConnection = await client.Connect())
             using (var e = csv.GetRecords<CSVOrder>().GetEnumerator())
             {
@@ -167,7 +176,7 @@ namespace Recommendations.DB.ImportUtil
                 Console.WriteLine();
             }
 
-            using (var reader = new StreamReader(path))
+            using (var reader = new StreamReader(path, Encoding.UTF8))
             using (var csv = new CsvReader(reader))
             using (var entryConnection = await client.Connect())
             using (var e = csv.GetRecords<CSVOrder>().GetEnumerator())
