@@ -196,7 +196,7 @@ namespace Recommendations.DB.ImportUtil
             }
 
             using (var reader = new StreamReader(path, Encoding.UTF8))
-            using (var csv = new CsvReader(reader))
+            using (var csv = new CsvReader(reader, _config))
             using (var entryConnection = await client.Connect())
             using (var e = csv.GetRecords<CSVOrder>().GetEnumerator())
             {
