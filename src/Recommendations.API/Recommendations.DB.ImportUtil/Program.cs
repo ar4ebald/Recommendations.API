@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
 using CsvHelper.Configuration;
+using CsvHelper.TypeConversion;
 using Recommendations.DB.ImportUtil.Model;
 using Recommendations.Model;
 
@@ -18,14 +19,29 @@ namespace Recommendations.DB.ImportUtil
         const int BatchSize = 1024 * 32;
 
         static readonly Configuration _config;
+        static readonly TypeConverterOptions _options;
 
         static Program()
         {
             _config = new Configuration(CultureInfo.GetCultureInfo("ru-RU"));
+            _config.TypeConverterOptionsCache.AddOptions(typeof(double), _options = new TypeConverterOptions
+            {
+                CultureInfo = CultureInfo.GetCultureInfo("en-US"),
+                NumberStyle = NumberStyles.Any
+            });
+
+            var c = _config.TypeConverterCache.GetConverter<DoubleConverter>();
         }
 
         static async Task Main(string[] args)
         {
+            //var culture = CultureInfo.GetCultureInfo("en-US");
+            ////var culture = CultureInfo.GetCultureInfo("ru-RU");
+            //Thread.CurrentThread.CurrentCulture = culture;
+            //Thread.CurrentThread.CurrentUICulture = culture;
+            //CultureInfo.DefaultThreadCurrentCulture = culture;
+            //CultureInfo.DefaultThreadCurrentUICulture = culture;
+
             var connectionString = args[0];
             var root = args[1];
 
@@ -81,8 +97,11 @@ namespace Recommendations.DB.ImportUtil
         {
             CSVProduct[] products;
 
+            var config = new Configuration(_config.CultureInfo) {Delimiter = ","};
+            config.TypeConverterOptionsCache.AddOptions(typeof(double), _options);
+
             using (var reader = new StreamReader(path, Encoding.UTF8))
-            using (var csv = new CsvReader(reader, new Configuration(_config.CultureInfo) { Delimiter = "," }))
+            using (var csv = new CsvReader(reader, config))
                 products = csv.GetRecords<CSVProduct>().ToArray();
 
             var departmentIDsOffset = products.Max(x => x.AisleID) + 1;
