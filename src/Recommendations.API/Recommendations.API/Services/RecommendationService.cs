@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -34,6 +36,7 @@ namespace Recommendations.API.Services
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
+                StandardOutputEncoding = Encoding.ASCII,
                 WorkingDirectory = Path.GetDirectoryName(_options.PredictionScriptPath)
             });
         }
@@ -60,7 +63,15 @@ namespace Recommendations.API.Services
             }
 
             _log.LogWarning($"From to STDOUT: {responseJson}");
-            var response = JsonConvert.DeserializeObject<PythonRecommendation[]>(responseJson);
+            PythonRecommendation[] response;
+            try
+            {
+                response = JsonConvert.DeserializeObject<PythonRecommendation[]>(responseJson);
+            }
+            catch (Exception exception)
+            {
+                throw new FormatException($"Invalid json line: {responseJson}", exception);
+            }
 
             return response.Select(x => (x.Score, (int)x.ProductID)).ToArray();
         }
